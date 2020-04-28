@@ -1,20 +1,8 @@
 const { GraphQLServer } = require('graphql-yoga');
 
-const typeDefs = `
-type Query {
-  info: String!
-  feed: [Link!]!
-}
-
-type Link {
-  id: ID!
-  description: String!
-  url: String!
-}
-`;
 
 // dummy data
-const links = [
+let links = [
   {
     id: 'link-0',
     url: 'www.link0.com',
@@ -26,21 +14,57 @@ const links = [
     description: 'more links'
   }
 ];
+let idCount = links.length;
 
 const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
     feed: () => links,
+    link: (parent, args) => links.find(linkById => linkById.id === args.id)
   },
-  Link: {
-    id: (parent) => parent.id,
-    description: (parent) => parent.description,
-    url: (parent) => parent.url
+  Mutation: {
+    post: (parent, args) => {
+      const link = {
+        id: `link-${idCount++}`,
+        description: args.description,
+        url: args.url,
+      }
+      links.push(link);
+      return link;
+    },
+    updateLink: (parent, args) => {
+      if (args.url || args.description) {
+        const linkIndex = links.findIndex(linkById => linkById.id === args.id);
+
+        if (linkIndex > -1) {
+          const { url, description, ...remainder } = links[linkIndex];
+          const newLinkById = {
+            ...remainder,
+            url: args.url ? args.url : url,
+            description: args.description ? args.description : description
+          };
+          links[linkIndex] = newLinkById;
+          return newLinkById;
+        }
+      }
+      return links;
+    },
+    deleteLink: (parent, args) => {
+      const linkIndex = links.findIndex(linkById => linkById.id === args.id);
+
+      if (linkIndex > -1) {
+        const removedLink = links[linkIndex];
+        const filteredLinks = links.filter(linkById => linkById.id !== args.id);
+        links = filteredLinks;
+        return removedLink;
+      }
+      return links;
+    }
   }
 };
 
 const server = new GraphQLServer({
-  typeDefs,
+  typeDefs: './src/schema.graphql',
   resolvers
 });
 
